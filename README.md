@@ -1,4 +1,9 @@
 ## 永久免费！
 利用 Cloudflare 全家桶（Pages + D1 + Workers）搭建一个端到端加密的私人笔记应用。
+
 支持手机电脑同步、AI 自动总结、阅后即焚分享。
+
 零基础打造黑客打不开的专属隐私保险箱！
+
+## 部署视频教程
+私隱加密筆記(https://www.youtube.com/watch?v=socPi5-GyIA)
