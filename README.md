@@ -6,4 +6,4 @@
 零基础打造黑客打不开的专属隐私保险箱！
 
 ## 部署视频教程
-私隱加密筆記(https://www.youtube.com/watch?v=socPi5-GyIA)
+[私隱加密筆記](https://www.youtube.com/watch?v=socPi5-GyIA)
