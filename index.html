@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -11,8 +10,9 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="icon" href="https://cdn.jsdmirror.com/gh/iTaoPu/CloudNotes@List/icon.png"/>
     <style>
-        @import url('https://cdn.jsdmirror.com/gh/iTaoPu/CloudNotes@List/Inter/fonts.txt');
-
+        /* 正确的 Inter 字体导入 */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+        
         body {
             font-family: 'Inter', sans-serif;
             background-color: #020617;
@@ -50,7 +50,6 @@
         }
     </style>
 </head>
-
 <body class="min-h-screen selection:bg-blue-500/30">
     <div id="app" class="max-w-3xl mx-auto px-6 py-12 md:py-20">
         <!-- 动态加载区 -->
@@ -63,8 +62,7 @@
             <h2 class="text-2xl font-extrabold tracking-tight">⚙️ 系统配置</h2>
             <div class="space-y-4">
                 <div class="space-y-1">
-                    <label class="text-[10px] uppercase tracking-widest text-slate-400 font-bold ml-1">Worker
-                        服务地址</label>
+                    <label class="text-[10px] uppercase tracking-widest text-slate-400 font-bold ml-1">Worker 服务地址</label>
                     <input id="setApi" type="text" placeholder="https://..."
                         class="w-full bg-slate-900/50 border border-slate-700 p-4 rounded-2xl outline-none focus:ring-2 ring-blue-500/50 text-sm transition-all">
                 </div>
@@ -81,231 +79,328 @@
                     class="flex-1 py-4 gradient-btn text-white font-bold rounded-2xl">保存</button>
             </div>
             <div class="text-center pt-2">
-                <a target="_blank"
+                <a href="#" target="_blank"
                     class="text-[10px] text-slate-600 hover:text-slate-400 font-bold tracking-widest uppercase">© 2022-2026 蜂巢·隱曜</a>
             </div>
         </div>
     </div>
 
     <script>
-        const urlParams = new URLSearchParams(window.location.search);
-        let apiFromUrl = urlParams.get('api');
-        const cfgFromUrl = urlParams.get('cfg');
-        if (cfgFromUrl) { try { apiFromUrl = atob(cfgFromUrl); } catch (e) { } }
-        const shareId = urlParams.get('share');
+        (function() {
+            // ---------- 初始化参数 ----------
+            const urlParams = new URLSearchParams(window.location.search);
+            let apiFromUrl = urlParams.get('api');
+            const cfgFromUrl = urlParams.get('cfg');
+            if (cfgFromUrl) { 
+                try { apiFromUrl = atob(cfgFromUrl); } catch (e) { console.warn('cfg 解码失败', e); } 
+            }
+            const shareId = urlParams.get('share');
 
-        let API_URL = apiFromUrl || localStorage.getItem('cf_notes_api') || "";
-        let ADMIN_KEY = localStorage.getItem('cf_notes_key') || "";
+            let API_URL = apiFromUrl || localStorage.getItem('cf_notes_api') || "";
+            let ADMIN_KEY = localStorage.getItem('cf_notes_key') || "";
 
-        const app = document.getElementById('app');
+            const app = document.getElementById('app');
 
-        // 加解密逻辑
-        async function getK(pw) {
-            const enc = new TextEncoder();
-            const hash = await crypto.subtle.digest('SHA-256', enc.encode(pw));
-            return await crypto.subtle.importKey('raw', hash, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
-        }
-        async function encrypt(text, pw) {
-            const enc = new TextEncoder(); const iv = crypto.getRandomValues(new Uint8Array(12)); const key = await getK(pw);
-            const cipher = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, enc.encode(text));
-            return btoa(JSON.stringify({ iv: Array.from(iv), data: Array.from(new Uint8Array(cipher)) }));
-        }
-        async function decrypt(json, pw) {
-            try {
-                const { iv, data } = JSON.parse(atob(json)); const key = await getK(pw);
-                const dec = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: new Uint8Array(iv) }, key, new Uint8Array(data));
-                return new TextDecoder().decode(dec);
-            } catch (e) { return null; }
-        }
-
-        function init() {
-            if (shareId) renderShareView();
-            else if (!API_URL) renderWelcomeView();
-            else renderMainView();
-        }
-
-        function renderWelcomeView() {
-            app.innerHTML = `
-            <div class="glass p-12 rounded-[3rem] text-center space-y-8 animate-in fade-in zoom-in duration-700">
-                <div class="inline-flex p-5 bg-blue-500/10 rounded-full text-5xl">🛡️</div>
-                <div class="space-y-2">
-                    <h1 class="text-4xl font-extrabold tracking-tight italic">CloudNotes</h1>
-                    <p class="text-slate-400 leading-relaxed">您的专属分布式加密笔记系统<br>请先关联您的 Cloudflare Worker 后端</p>
-                </div>
-                <button onclick="configUrl()" class="px-10 py-5 gradient-btn text-white font-black rounded-3xl shadow-2xl">初始化配置</button>
-            </div>
-        `;
-        }
-
-        function renderMainView() {
-            app.innerHTML = `
-            <div class="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
-                <header class="flex justify-between items-end">
-                    <div class="space-y-1">
-                        <h1 class="text-4xl font-extrabold tracking-tighter bg-gradient-to-r from-white to-slate-500 bg-clip-text text-transparent">CloudNotes</h1>
-                        <p class="text-[10px] uppercase tracking-[0.3em] text-blue-500 font-black">端到端加密保险库</p>
-                    </div>
-                    <button onclick="configUrl()" class="p-4 glass rounded-2xl hover:rotate-180 transition-all duration-500 text-xl">⚙️</button>
-                </header>
-
-                <main class="glass p-8 rounded-[2.5rem] shadow-2xl space-y-6 border-white/5">
-                    <input id="mainPw" type="password" placeholder="设置解密主密码 (Passkey)" class="w-full bg-slate-950/50 border border-slate-800 p-5 rounded-2xl outline-none focus:ring-2 ring-blue-500/50 transition-all font-mono">
-                    <textarea id="noteInput" placeholder="在此输入私人内容..." class="w-full bg-slate-950/50 border border-slate-800 p-5 h-48 rounded-2xl outline-none focus:bg-slate-950 transition-all resize-none leading-relaxed"></textarea>
-                    <div class="grid grid-cols-2 gap-4">
-                        <button onclick="doSave()" class="gradient-btn text-white py-5 rounded-2xl font-black tracking-widest uppercase text-xs">加密存入云端</button>
-                        <button onclick="doAI()" class="glass text-purple-400 py-5 rounded-2xl font-black tracking-widest uppercase text-xs hover:bg-purple-500/10 transition border-purple-500/20">✨ AI 智能总结</button>
-                    </div>
-                </main>
-
-                <section class="space-y-6">
-                    <div class="flex justify-between items-center px-4">
-                        <h2 class="text-xs font-black uppercase tracking-[0.2em] text-slate-500 italic">Vault / 我的加密库</h2>
-                        <button onclick="loadList()" class="text-blue-500 text-xs font-black hover:underline uppercase">刷新列表</button>
-                    </div>
-                    <div id="notesList" class="space-y-4">
-                        <div class="text-center py-20 text-slate-600 italic text-sm">配置暗号并填入密码后点击刷新。</div>
-                    </div>
-                </section>
-                <footer class="text-center pt-8 pb-4 opacity-50 hover:opacity-100 transition duration-500">
-                     <a target="_blank" class="text-[10px] text-slate-500 font-bold hover:text-blue-400 uppercase tracking-widest transition">© 2022-2026 蜂巢·隱曜</a>
-                </footer>
-            </div>
-        `;
-        }
-
-        function renderShareView() {
-            app.innerHTML = `
-            <div class="glass p-12 rounded-[3rem] shadow-2xl text-center space-y-8 animate-in zoom-in duration-500">
-                <div class="text-6xl animate-bounce">🔥</div>
-                <div class="space-y-2">
-                    <h1 class="text-3xl font-black italic">阅后即焚解密</h1>
-                    <p class="text-slate-400 text-sm">解密后数据将立即从服务器物理擦除</p>
-                </div>
-                <input id="sharePw" type="password" placeholder="请输入 6 位以上解密密码" class="w-full bg-slate-950/50 border border-slate-800 p-5 rounded-2xl outline-none focus:ring-2 ring-orange-500/50 text-center font-mono">
-                <button id="unlockBtn" onclick="doUnlockShare()" class="w-full bg-gradient-to-r from-orange-600 to-red-600 text-white py-5 rounded-2xl font-black uppercase tracking-widest shadow-xl hover:scale-[1.02] transition">解密并销毁</button>
-                <div id="shareResult" class="mt-8 text-left p-6 bg-slate-950/50 rounded-2xl hidden whitespace-pre-wrap text-sm leading-relaxed border border-orange-500/20 ring-1 ring-orange-500/10 shadow-inner italic text-slate-300"></div>
-                <div class="pt-8 border-t border-white/5">
-                    <a target="_blank" class="text-xs font-black uppercase tracking-widest text-red-500 hover:text-red-400 transition underline underline-offset-4">© 2022-2026 蜂巢·隱曜</a>
-                </div>
-            </div>
-        `;
-        }
-
-        /* --- 功能逻辑 --- */
-        function configUrl() {
-            document.getElementById('settingsModal').classList.remove('hidden');
-            document.getElementById('setApi').value = API_URL;
-            document.getElementById('setKey').value = ADMIN_KEY;
-        }
-        function closeSettings() { document.getElementById('settingsModal').classList.add('hidden'); }
-        function saveSettings() {
-            localStorage.setItem('cf_notes_api', document.getElementById('setApi').value);
-            localStorage.setItem('cf_notes_key', document.getElementById('setKey').value);
-            location.reload();
-        }
-
-        async function doSave() {
-            const text = document.getElementById('noteInput').value; const pw = document.getElementById('mainPw').value;
-            if (!text || !pw) return alert("请填写内容和密码");
-            try {
-                const cipher = await encrypt(text, pw);
-                const res = await fetch(`${API_URL}/api/save`, {
-                    method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': ADMIN_KEY },
-                    body: JSON.stringify({ content: cipher })
-                });
-                if (res.ok) { alert("✅ 已存入安全库"); document.getElementById('noteInput').value = ""; loadList(); }
-                else alert("❌ 暗号错误");
-            } catch (e) { alert("❌ 网络连接失败"); }
-        }
-
-        async function loadList() {
-            const pw = document.getElementById('mainPw').value; if (!pw) return alert("请输入密码解密");
-            const listDiv = document.getElementById('notesList');
-            try {
-                const res = await fetch(`${API_URL}/api/list`, { headers: { 'Authorization': ADMIN_KEY } });
-                const notes = await res.json(); listDiv.innerHTML = "";
-                if (notes.length === 0) listDiv.innerHTML = '<div class="text-center py-20 text-slate-700 italic text-sm">暂无数据</div>';
-                for (let n of notes) {
-                    const clearText = await decrypt(n.content, pw) || "🔒 [加密数据 / 密码不匹配]";
-                    const card = document.createElement('div');
-                    card.className = "note-card glass p-6 rounded-3xl space-y-4 border border-white/5 shadow-lg group";
-                    card.innerHTML = `
-                    <div class="flex justify-between text-[9px] font-black text-slate-500 tracking-widest uppercase italic">
-                        <span>索引编号 #${n.id}</span>
-                        <span>${new Date(n.created_at).toLocaleString()}</span>
-                    </div>
-                    <div class="text-slate-300 text-sm leading-relaxed whitespace-pre-wrap">${clearText}</div>
-                    <div class="pt-4 border-t border-white/5 flex flex-wrap gap-6 items-center">
-                        <button onclick="doShareCopy('${n.content}')" class="text-xs font-black text-blue-400 uppercase tracking-widest hover:text-blue-300 transition">📤 生成阅后即焚链接</button>
-                        <button onclick="doExport(\`${clearText.replace(/`/g, '\\`').replace(/\$/g, '\\$')}\`, ${n.id})" class="text-xs font-black text-emerald-500 uppercase tracking-widest hover:text-emerald-400 transition">💾 导出备份</button>
-                        <button onclick="doDelete(${n.id})" class="text-xs font-black text-rose-500 uppercase tracking-widest ml-auto opacity-40 group-hover:opacity-100 transition">🗑️ 删除</button>
-                    </div>
-                `;
-                    listDiv.appendChild(card);
+            // ---------- 加解密逻辑 ----------
+            async function getK(pw) {
+                const enc = new TextEncoder();
+                const hash = await crypto.subtle.digest('SHA-256', enc.encode(pw));
+                return await crypto.subtle.importKey('raw', hash, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
+            }
+            async function encrypt(text, pw) {
+                const enc = new TextEncoder(); 
+                const iv = crypto.getRandomValues(new Uint8Array(12)); 
+                const key = await getK(pw);
+                const cipher = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, enc.encode(text));
+                return btoa(JSON.stringify({ iv: Array.from(iv), data: Array.from(new Uint8Array(cipher)) }));
+            }
+            async function decrypt(json, pw) {
+                try {
+                    const { iv, data } = JSON.parse(atob(json)); 
+                    const key = await getK(pw);
+                    const dec = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: new Uint8Array(iv) }, key, new Uint8Array(data));
+                    return new TextDecoder().decode(dec);
+                } catch (e) { 
+                    console.warn('解密失败', e);
+                    return null; 
                 }
-            } catch (e) { alert("拉取失败"); }
-        }
+            }
 
-        async function doShareCopy(cipher) {
-            const pid = Math.random().toString(36).substring(2, 12);
-            try {
-                await fetch(`${API_URL}/api/save`, {
-                    method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': ADMIN_KEY },
-                    body: JSON.stringify({ content: cipher, public_id: pid, is_share: 1 })
-                });
-                const fullUrl = `${window.location.origin}${window.location.pathname}?share=${pid}&cfg=${btoa(API_URL)}`;
-                prompt("✅ 阅后即焚加密链接已生成：", fullUrl);
-            } catch (e) { alert("分享失败"); }
-        }
+            // ---------- 视图渲染 ----------
+            function init() {
+                if (shareId) renderShareView();
+                else if (!API_URL) renderWelcomeView();
+                else renderMainView();
+            }
 
-        function doExport(text, id) {
-            const date = new Date().toISOString().split('T')[0];
-            const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a'); a.href = url; a.download = `CloudNote_${id}_${date}.txt`; a.click();
-        }
+            function renderWelcomeView() {
+                app.innerHTML = `
+                <div class="glass p-12 rounded-[3rem] text-center space-y-8 animate-in fade-in zoom-in duration-700">
+                    <div class="inline-flex p-5 bg-blue-500/10 rounded-full text-5xl">🛡️</div>
+                    <div class="space-y-2">
+                        <h1 class="text-4xl font-extrabold tracking-tight italic">CloudNotes</h1>
+                        <p class="text-slate-400 leading-relaxed">您的专属分布式加密笔记系统<br>请先关联您的 Cloudflare Worker 后端</p>
+                    </div>
+                    <button onclick="configUrl()" class="px-10 py-5 gradient-btn text-white font-black rounded-3xl shadow-2xl">初始化配置</button>
+                </div>
+            `;
+            }
 
-        async function doDelete(id) {
-            if (!confirm("确定要物理抹除这条记录吗？")) return;
-            await fetch(`${API_URL}/api/delete`, {
-                method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': ADMIN_KEY },
-                body: JSON.stringify({ id: id })
-            });
-            loadList();
-        }
+            function renderMainView() {
+                app.innerHTML = `
+                <div class="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
+                    <header class="flex justify-between items-end">
+                        <div class="space-y-1">
+                            <h1 class="text-4xl font-extrabold tracking-tighter bg-gradient-to-r from-white to-slate-500 bg-clip-text text-transparent">CloudNotes</h1>
+                            <p class="text-[10px] uppercase tracking-[0.3em] text-blue-500 font-black">端到端加密保险库</p>
+                        </div>
+                        <button onclick="configUrl()" class="p-4 glass rounded-2xl hover:rotate-180 transition-all duration-500 text-xl">⚙️</button>
+                    </header>
 
-        async function doAI() {
-            const text = document.getElementById('noteInput').value; if (!text) return alert("笔记为空");
-            const btn = event.target; btn.innerText = "思考中..."; btn.disabled = true;
-            try {
-                const res = await fetch(`${API_URL}/api/ai-sum`, {
-                    method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': ADMIN_KEY },
-                    body: JSON.stringify({ text: text.substring(0, 1000) })
-                });
-                const data = await res.json();
-                document.getElementById('noteInput').value += `\n\n--- ✨ AI SUMMARY ---\n${data.summary}`;
-            } finally { btn.innerText = "✨ AI 智能总结"; btn.disabled = false; }
-        }
+                    <main class="glass p-8 rounded-[2.5rem] shadow-2xl space-y-6 border-white/5">
+                        <input id="mainPw" type="password" placeholder="设置解密主密码 (Passkey)" class="w-full bg-slate-950/50 border border-slate-800 p-5 rounded-2xl outline-none focus:ring-2 ring-blue-500/50 transition-all font-mono">
+                        <textarea id="noteInput" placeholder="在此输入私人内容..." class="w-full bg-slate-950/50 border border-slate-800 p-5 h-48 rounded-2xl outline-none focus:bg-slate-950 transition-all resize-none leading-relaxed"></textarea>
+                        <div class="grid grid-cols-2 gap-4">
+                            <button onclick="doSave()" class="gradient-btn text-white py-5 rounded-2xl font-black tracking-widest uppercase text-xs">加密存入云端</button>
+                            <button onclick="doAI(event)" class="glass text-purple-400 py-5 rounded-2xl font-black tracking-widest uppercase text-xs hover:bg-purple-500/10 transition border-purple-500/20">✨ AI 智能总结</button>
+                        </div>
+                    </main>
 
-        async function doUnlockShare() {
-            const pw = document.getElementById('sharePw').value; const resDiv = document.getElementById('shareResult');
-            try {
-                const res = await fetch(`${API_URL}/api/share/${shareId}`);
-                if (!res.ok) return alert("失效或已被焚毁");
-                const data = await res.json(); const clearText = await decrypt(data.content, pw);
-                if (clearText) { resDiv.innerText = clearText; resDiv.classList.remove('hidden'); document.getElementById('unlockBtn').disabled = true; document.getElementById('unlockBtn').innerText = "数据已销毁"; }
-                else alert("密码错误");
-            } catch (e) { alert("网络异常"); }
-        }
+                    <section class="space-y-6">
+                        <div class="flex justify-between items-center px-4">
+                            <h2 class="text-xs font-black uppercase tracking-[0.2em] text-slate-500 italic">Vault / 我的加密库</h2>
+                            <button onclick="loadList()" class="text-blue-500 text-xs font-black hover:underline uppercase">刷新列表</button>
+                        </div>
+                        <div id="notesList" class="space-y-4">
+                            <div class="text-center py-20 text-slate-600 italic text-sm">配置暗号并填入密码后点击刷新。</div>
+                        </div>
+                    </section>
+                    <footer class="text-center pt-8 pb-4 opacity-50 hover:opacity-100 transition duration-500">
+                         <a href="#" target="_blank" class="text-[10px] text-slate-500 font-bold hover:text-blue-400 uppercase tracking-widest transition">© 2022-2026 蜂巢·隱曜</a>
+                    </footer>
+                </div>
+            `;
+            }
 
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('./sw.js')
-                .then(() => console.log('Service Worker Registered'))
-                .catch(err => console.error('Service Worker Registration Failed', err));
-        }
+            function renderShareView() {
+                app.innerHTML = `
+                <div class="glass p-12 rounded-[3rem] shadow-2xl text-center space-y-8 animate-in zoom-in duration-500">
+                    <div class="text-6xl animate-bounce">🔥</div>
+                    <div class="space-y-2">
+                        <h1 class="text-3xl font-black italic">阅后即焚解密</h1>
+                        <p class="text-slate-400 text-sm">解密后数据将立即从服务器物理擦除</p>
+                    </div>
+                    <input id="sharePw" type="password" placeholder="请输入 6 位以上解密密码" class="w-full bg-slate-950/50 border border-slate-800 p-5 rounded-2xl outline-none focus:ring-2 ring-orange-500/50 text-center font-mono">
+                    <button id="unlockBtn" onclick="doUnlockShare()" class="w-full bg-gradient-to-r from-orange-600 to-red-600 text-white py-5 rounded-2xl font-black uppercase tracking-widest shadow-xl hover:scale-[1.02] transition">解密并销毁</button>
+                    <div id="shareResult" class="mt-8 text-left p-6 bg-slate-950/50 rounded-2xl hidden whitespace-pre-wrap text-sm leading-relaxed border border-orange-500/20 ring-1 ring-orange-500/10 shadow-inner italic text-slate-300"></div>
+                    <div class="pt-8 border-t border-white/5">
+                        <a href="#" target="_blank" class="text-xs font-black uppercase tracking-widest text-red-500 hover:text-red-400 transition underline underline-offset-4">© 2022-2026 蜂巢·隱曜</a>
+                    </div>
+                </div>
+            `;
+            }
 
-        init();
+            /* --- 功能逻辑 --- */
+            window.configUrl = function() {
+                document.getElementById('settingsModal').classList.remove('hidden');
+                document.getElementById('setApi').value = API_URL;
+                document.getElementById('setKey').value = ADMIN_KEY;
+            }
+            window.closeSettings = function() { 
+                document.getElementById('settingsModal').classList.add('hidden'); 
+            }
+            window.saveSettings = function() {
+                localStorage.setItem('cf_notes_api', document.getElementById('setApi').value);
+                localStorage.setItem('cf_notes_key', document.getElementById('setKey').value);
+                location.reload();
+            }
+
+            window.doSave = async function() {
+                const text = document.getElementById('noteInput').value; 
+                const pw = document.getElementById('mainPw').value;
+                if (!text || !pw) return alert("请填写内容和密码");
+                try {
+                    const cipher = await encrypt(text, pw);
+                    const res = await fetch(`${API_URL}/api/save`, {
+                        method: 'POST', 
+                        headers: { 'Content-Type': 'application/json', 'Authorization': ADMIN_KEY },
+                        body: JSON.stringify({ content: cipher })
+                    });
+                    if (res.ok) { 
+                        alert("✅ 已存入安全库"); 
+                        document.getElementById('noteInput').value = ""; 
+                        loadList(); 
+                    } else {
+                        const err = await res.text();
+                        alert("❌ 保存失败: " + err);
+                    }
+                } catch (e) { 
+                    alert("❌ 网络连接失败"); 
+                    console.error(e);
+                }
+            }
+
+            window.loadList = async function() {
+                const pw = document.getElementById('mainPw')?.value; 
+                if (!pw) return alert("请输入密码解密");
+                const listDiv = document.getElementById('notesList');
+                if (!listDiv) return;
+                try {
+                    const res = await fetch(`${API_URL}/api/list`, { headers: { 'Authorization': ADMIN_KEY } });
+                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                    const notes = await res.json(); 
+                    listDiv.innerHTML = "";
+                    if (notes.length === 0) {
+                        listDiv.innerHTML = '<div class="text-center py-20 text-slate-700 italic text-sm">暂无数据</div>';
+                        return;
+                    }
+                    for (let n of notes) {
+                        const clearText = await decrypt(n.content, pw) || "🔒 [加密数据 / 密码不匹配]";
+                        const card = document.createElement('div');
+                        card.className = "note-card glass p-6 rounded-3xl space-y-4 border border-white/5 shadow-lg group";
+                        // 使用 encodeURIComponent 安全嵌入动态内容
+                        const encodedCipher = encodeURIComponent(n.content);
+                        const encodedClear = encodeURIComponent(clearText);
+                        card.innerHTML = `
+                        <div class="flex justify-between text-[9px] font-black text-slate-500 tracking-widest uppercase italic">
+                            <span>索引编号 #${n.id}</span>
+                            <span>${new Date(n.created_at).toLocaleString()}</span>
+                        </div>
+                        <div class="text-slate-300 text-sm leading-relaxed whitespace-pre-wrap">${clearText}</div>
+                        <div class="pt-4 border-t border-white/5 flex flex-wrap gap-6 items-center">
+                            <button onclick="doShareCopy('${encodedCipher}')" class="text-xs font-black text-blue-400 uppercase tracking-widest hover:text-blue-300 transition">📤 生成阅后即焚链接</button>
+                            <button onclick="doExport('${encodedClear}', ${n.id})" class="text-xs font-black text-emerald-500 uppercase tracking-widest hover:text-emerald-400 transition">💾 导出备份</button>
+                            <button onclick="doDelete(${n.id})" class="text-xs font-black text-rose-500 uppercase tracking-widest ml-auto opacity-40 group-hover:opacity-100 transition">🗑️ 删除</button>
+                        </div>
+                    `;
+                        listDiv.appendChild(card);
+                    }
+                } catch (e) { 
+                    alert("拉取失败: " + e.message); 
+                }
+            }
+
+            window.doShareCopy = async function(encodedCipher) {
+                const cipher = decodeURIComponent(encodedCipher);
+                const pid = Math.random().toString(36).substring(2, 12);
+                try {
+                    const res = await fetch(`${API_URL}/api/save`, {
+                        method: 'POST', 
+                        headers: { 'Content-Type': 'application/json', 'Authorization': ADMIN_KEY },
+                        body: JSON.stringify({ content: cipher, public_id: pid, is_share: 1 })
+                    });
+                    if (!res.ok) {
+                        const err = await res.text();
+                        throw new Error(err || '保存失败');
+                    }
+                    const fullUrl = `${window.location.origin}${window.location.pathname}?share=${pid}&cfg=${btoa(API_URL)}`;
+                    prompt("✅ 阅后即焚加密链接已生成：", fullUrl);
+                } catch (e) { 
+                    alert("分享失败: " + e.message); 
+                }
+            }
+
+            window.doExport = function(encodedText, id) {
+                const text = decodeURIComponent(encodedText);
+                const date = new Date().toISOString().split('T')[0];
+                const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a'); 
+                a.href = url; 
+                a.download = `CloudNote_${id}_${date}.txt`; 
+                a.click();
+                URL.revokeObjectURL(url);
+            }
+
+            window.doDelete = async function(id) {
+                if (!confirm("确定要物理抹除这条记录吗？")) return;
+                try {
+                    const res = await fetch(`${API_URL}/api/delete`, {
+                        method: 'POST', 
+                        headers: { 'Content-Type': 'application/json', 'Authorization': ADMIN_KEY },
+                        body: JSON.stringify({ id: id })
+                    });
+                    if (!res.ok) {
+                        const err = await res.text();
+                        throw new Error(err || '删除失败');
+                    }
+                    loadList();
+                } catch (e) {
+                    alert("删除失败: " + e.message);
+                }
+            }
+
+            window.doAI = async function(event) {
+                const btn = event.currentTarget;
+                const originalText = btn.innerText;
+                btn.innerText = "思考中...";
+                btn.disabled = true;
+
+                const text = document.getElementById('noteInput').value; 
+                if (!text) {
+                    alert("笔记为空");
+                    btn.innerText = originalText;
+                    btn.disabled = false;
+                    return;
+                }
+
+                try {
+                    const res = await fetch(`${API_URL}/api/ai-sum`, {
+                        method: 'POST', 
+                        headers: { 'Content-Type': 'application/json', 'Authorization': ADMIN_KEY },
+                        body: JSON.stringify({ text: text.substring(0, 1000) })
+                    });
+                    if (!res.ok) {
+                        const err = await res.text();
+                        throw new Error(err || 'AI 服务出错');
+                    }
+                    const data = await res.json();
+                    document.getElementById('noteInput').value += `\n\n--- ✨ AI SUMMARY ---\n${data.summary}`;
+                } catch (e) {
+                    alert("AI 总结失败: " + e.message);
+                } finally {
+                    btn.innerText = originalText;
+                    btn.disabled = false;
+                }
+            }
+
+            window.doUnlockShare = async function() {
+                if (!API_URL) {
+                    return alert("未配置后端地址，无法解密");
+                }
+                const pw = document.getElementById('sharePw').value; 
+                const resDiv = document.getElementById('shareResult');
+                const unlockBtn = document.getElementById('unlockBtn');
+                try {
+                    const res = await fetch(`${API_URL}/api/share/${shareId}`);
+                    if (!res.ok) {
+                        if (res.status === 404) throw new Error("链接失效或已被焚毁");
+                        throw new Error(`HTTP ${res.status}`);
+                    }
+                    const data = await res.json(); 
+                    const clearText = await decrypt(data.content, pw);
+                    if (clearText) { 
+                        resDiv.innerText = clearText; 
+                        resDiv.classList.remove('hidden'); 
+                        unlockBtn.disabled = true; 
+                        unlockBtn.innerText = "数据已销毁"; 
+                    } else {
+                        alert("密码错误");
+                    }
+                } catch (e) { 
+                    alert("网络异常: " + e.message); 
+                }
+            }
+
+            // 注册 Service Worker (可选)
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(() => console.log('Service Worker Registered'))
+                    .catch(err => console.error('Service Worker Registration Failed', err));
+            }
+
+            init();
+        })();
     </script>
 </body>
-
 </html>
