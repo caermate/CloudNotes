@@ -67,12 +67,13 @@
 
   2. 添加备份环境变量
    在 Worker 的 设置 > 变量和机密 中，继续添加以下三个环境变量：
-变量名	说明	示例值
+
 |变量名|说明|示例值|
-|-----|------|----|
+|----------|----------------------|------------------------------|
 |WEBDAV_URL|WebDAV 服务的根目录地址|https://dav.jianguoyun.com/dav/|
 |WEBDAV_USER|WebDAV 用户名|your-username|
 |WEBDAV_PASS|WebDAV 密码|your-password|
+
   3. 启用定时备份
    在 Worker 的触发器设置中，添加 Cron Trigger（若使用 wrangler.toml 则添加以下配置）：  
      
