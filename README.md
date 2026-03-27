@@ -56,6 +56,43 @@
   2. 在 Cloudflare Pages 中关联该 GitHub 仓库。
   3. 部署完成后，建议绑定一个自定义域名以获得更稳定的访问。
 
+### 4. 备份配置（可选）
+  为增强数据安全性，可以为 Worker 添加自动备份功能，将笔记数据库定期导出并保存到您自己的 WebDAV 存储（如 Nextcloud、坚果云等）。
+  1. 准备 WebDAV 存储
+   选择支持 WebDAV 协议的服务，获取访问地址、用户名和密码。
+      1. Nextcloud 示例：https://your-domain.com/remote.php/dav/files/username/
+      2. 坚果云 示例：https://dav.jianguoyun.com/dav/
+      3. 城通网盘 实例：https://webdav.ctfile.com/*****/
+   建议在 WebDAV 根目录下手动创建 CloudNotes/ 文件夹（部分服务会自动创建，若不支持需提前创建）。
+
+  2. 添加备份环境变量
+   在 Worker 的 设置 > 变量和机密 中，继续添加以下三个环境变量：
+变量名	说明	示例值
+|变量名|说明|示例值|
+|-----|------|----|
+|WEBDAV_URL|WebDAV 服务的根目录地址|https://dav.jianguoyun.com/dav/|
+|WEBDAV_USER|WebDAV 用户名|your-username|
+|WEBDAV_PASS|WebDAV 密码|your-password|
+  3. 启用定时备份
+   在 Worker 的触发器设置中，添加 Cron Trigger（若使用 wrangler.toml 则添加以下配置）：  
+     
+      crons = ["0 */12 * * *"]   # 每 12 小时备份一次
+   定时任务执行时，会将当前所有笔记导出为 JSON 文件（命名格式 notes_db_backup_YYYY-MM-DDTHH-MM-SS-XXXZ.json），并上传到 WebDAV 的 CloudNotes/ 目录下。
+  4. 手动触发备份（可选）
+  备份接口已集成到 Worker 中，您可以通过以下方式手动触发：
+    浏览器地址栏（GET 请求）：
+    https://你的worker域名/api/backup?auth=你的ADMIN_KEY
+    返回 JSON 结果，包含备份文件名和 WebDAV 地址。
+    开发者工具控制台（POST 请求）：
+
+    fetch('https://你的worker域名/api/backup', {
+      method: 'POST',
+      headers: { 'Authorization': '你的ADMIN_KEY' }
+    }).then(r=>r.json()).then(console.log);
+
+  5. 验证备份
+    使用 WebDAV 客户端访问 CloudNotes/ 目录，检查生成的 JSON 备份文件，确认内容为完整的数据库记录。 
+ 
 ### 📖 使用说明
   1. 初始化：首次打开页面，输入你的 Worker API 地址（如 https://api.yourdomain.com）和 admin_key。
   2. 本地加密：设置一个“笔记主密码”。请务必牢记，此密码不上传服务器，丢失后无法找回内容。
